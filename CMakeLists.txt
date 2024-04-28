@@ -412,6 +412,7 @@ set(JSON_C_HEADERS
     ${PROJECT_SOURCE_DIR}/snprintf_compat.h
     ${PROJECT_SOURCE_DIR}/strdup_compat.h
     ${PROJECT_SOURCE_DIR}/vasprintf_compat.h
+    ${PROJECT_SOURCE_DIR}/netlib_fp/g_fmt.h
 )
 
 set(JSON_C_SOURCES
@@ -427,7 +428,11 @@ set(JSON_C_SOURCES
     ${PROJECT_SOURCE_DIR}/printbuf.c
     ${PROJECT_SOURCE_DIR}/random_seed.c
     ${PROJECT_SOURCE_DIR}/strerror_override.c
+    ${PROJECT_SOURCE_DIR}/netlib_fp/dtoa.c
+    ${PROJECT_SOURCE_DIR}/netlib_fp/g_fmt.c
 )
+
+set_source_files_properties(${PROJECT_SOURCE_DIR}/netlib_fp/dtoa.c PROPERTIES COMPILE_FLAGS -DIEEE_8087=1)
 
 if (NOT DISABLE_JSON_POINTER)
     set(JSON_C_PUBLIC_HEADERS   ${JSON_C_PUBLIC_HEADERS}  ${PROJECT_SOURCE_DIR}/json_pointer.h)

@@ -371,11 +371,14 @@ Exactly one of IEEE_8087, IEEE_MC68k, VAX, or IBM should be defined.
 #ifdef SET_INEXACT
 #define dtoa_divmax 27
 #else
-int dtoa_divmax = 2;	/* Permit experimenting: on some systems, 64-bit integer */
+static int dtoa_divmax = 2;	/* Permit experimenting: on some systems, 64-bit integer */
 			/* division is slow enough that we may sometimes want to */
 			/* avoid using it.   We assume (but do not check) that   */
 			/* dtoa_divmax <= 27.*/
 #endif
+
+#include "json_inttypes.h"
+#define _DTOA_UNCONST(a) ((void *)(uintptr_t)(const void *)(a))
 
 typedef struct BF96 {		/* Normalized 96-bit software floating point numbers */
 	unsigned int b0,b1,b2;	/* b0 = most significant, binary point just to its left */
@@ -1597,7 +1600,7 @@ Balloc(int k MTd)
 #else
 		len = (sizeof(Bigint) + (x-1)*sizeof(ULong) + sizeof(double) - 1)
 			/sizeof(double);
-		if (k <= Kmax && pmem_next - private_mem + len <= PRIVATE_mem
+		if (k <= Kmax && pmem_next - private_mem + len <= (long)PRIVATE_mem
 #ifdef MULTIPLE_THREADS
 			&& TI == TI1
 #endif
@@ -2715,7 +2718,7 @@ enum {	/* rounding values: same as FLT_ROUNDS */
 	Round_down = 3
 	};
 
- void
+static void
 gethex(const char **sp, U *rvp, int rounding, int sign MTd)
 {
 	Bigint *b;
@@ -2826,6 +2829,7 @@ gethex(const char **sp, U *rvp, int rounding, int sign MTd)
 		  case '-':
 			esign = 1;
 			/* no break */
+			/* FALLTHRU */
 		  case '+':
 			s++;
 		  }
@@ -2843,9 +2847,9 @@ gethex(const char **sp, U *rvp, int rounding, int sign MTd)
 			e1 = -e1;
 		e += e1;
 	  }
-	*sp = (char*)s;
+	*sp = (const char*)s;
 	if (!havedig)
-		*sp = (char*)s0 - 1;
+		*sp = (const char*)s0 - 1;
 	if (zret)
 		goto retz1;
 	if (big) {
@@ -3471,7 +3475,7 @@ retlow1:
 #endif /* NO_STRTOD_BIGCOMP */
 
  double
-strtod(const char *s00, char **se)
+json_c_strtod(const char *s00, char **se)
 {
 	int bb2, bb5, bbe, bd2, bd5, bbbits, bs2, c, e, e1;
 	int esign, i, j, k, nd, nd0, nf, nz, nz0, nz1, sign;
@@ -3521,10 +3525,12 @@ strtod(const char *s00, char **se)
 		case '-':
 			sign = 1;
 			/* no break */
+			/* FALLTHRU */
 		case '+':
 			if (*++s)
 				goto break2;
 			/* no break */
+			/* FALLTHRU */
 		case 0:
 			goto ret0;
 		case '\t':
@@ -3651,6 +3657,7 @@ strtod(const char *s00, char **se)
 		switch(c = *++s) {
 			case '-':
 				esign = 1;
+				/* FALLTHRU */
 			case '+':
 				c = *++s;
 			}
@@ -4889,7 +4896,7 @@ strtod(const char *s00, char **se)
 		clear_inexact();
 #endif
 	if (se)
-		*se = (char *)s;
+		*se = _DTOA_UNCONST(s);
 	return sign ? -dval(&rv) : dval(&rv);
 	}
 
@@ -4904,7 +4911,7 @@ rv_alloc(int i MTd)
 
 	j = sizeof(ULong);
 	for(k = 0;
-		sizeof(Bigint) - sizeof(ULong) - sizeof(int) + j <= i;
+		(int)(sizeof(Bigint) - sizeof(ULong) - sizeof(int)) + j <= i;
 		j <<= 1)
 			k++;
 	r = (int*)Balloc(k MTa);
@@ -4917,7 +4924,7 @@ rv_alloc(int i MTd)
 	}
 
  static char *
-nrv_alloc(const char *s, char *s0, size_t s0len, char **rve, int n MTd)
+nrv_alloc(const char *s, char *s0, size_t s0len, char **rve, unsigned int n MTd)
 {
 	char *rv, *t;
 
@@ -4944,7 +4951,7 @@ nrv_alloc(const char *s, char *s0, size_t s0len, char **rve, int n MTd)
  */
 
  void
-freedtoa(char *s)
+json_c_freedtoa(char *s)
 {
 #ifdef MULTIPLE_THREADS
 	ThInfo *TI = 0;
@@ -4993,7 +5000,7 @@ freedtoa(char *s)
  */
 
  char *
-dtoa_r(double dd, int mode, int ndigits, int *decpt, int *sign, char **rve, char *buf, size_t blen)
+json_c_dtoa_r(double dd, int mode, int ndigits, int *decpt, int *sign, char **rve, char *buf, size_t blen)
 {
  /*	Arguments ndigits, decpt, sign are similar to those
 	of ecvt and fcvt; trailing zeros are suppressed from
@@ -5302,6 +5309,7 @@ dtoa_r(double dd, int mode, int ndigits, int *decpt, int *sign, char **rve, char
 		case 2:
 			leftright = 0;
 			/* no break */
+			/* FALLTHRU */
 		case 4:
 			if (ndigits <= 0)
 				ndigits = 1;
@@ -5310,6 +5318,7 @@ dtoa_r(double dd, int mode, int ndigits, int *decpt, int *sign, char **rve, char
 		case 3:
 			leftright = 0;
 			/* no break */
+			/* FALLTHRU */
 		case 5:
 			i = ndigits + k + 1;
 			ilim = i;
@@ -5321,7 +5330,7 @@ dtoa_r(double dd, int mode, int ndigits, int *decpt, int *sign, char **rve, char
 		buf = rv_alloc(i MTb);
 		blen = sizeof(Bigint) + ((1 << ((int*)buf)[-1]) - 1)*sizeof(ULong) - sizeof(int);
 		}
-	else if (blen <= i) {
+	else if ((long)blen <= i) {
 		buf = 0;
 		if (rve)
 			*rve = buf + i;
@@ -6230,7 +6239,7 @@ dtoa_r(double dd, int mode, int ndigits, int *decpt, int *sign, char **rve, char
 	}
 
  char *
-dtoa(double dd, int mode, int ndigits, int *decpt, int *sign, char **rve)
+json_c_dtoa(double dd, int mode, int ndigits, int *decpt, int *sign, char **rve)
 {
 	/*	Sufficient space is allocated to the return value
 		to hold the suppressed trailing zeros.
@@ -6238,9 +6247,9 @@ dtoa(double dd, int mode, int ndigits, int *decpt, int *sign, char **rve)
 	*/
 #ifndef MULTIPLE_THREADS
 	if (dtoa_result)
-		freedtoa(dtoa_result);
+		json_c_freedtoa(dtoa_result);
 #endif
-	return dtoa_r(dd, mode, ndigits, decpt, sign, rve, 0, 0);
+	return json_c_dtoa_r(dd, mode, ndigits, decpt, sign, rve, 0, 0);
 	}
 
 #ifdef __cplusplus

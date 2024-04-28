@@ -25,15 +25,15 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
- extern char *dtoa(double, int, int, int *, int *, char **);
- extern char *g_fmt(char *, double);
- extern void freedtoa(char*);
+ extern char *json_c_dtoa(double, int, int, int *, int *, char **);
+ extern char *json_c_g_fmt(char *, double);
+ extern void json_c_freedtoa(char*);
 #ifdef __cplusplus
 	}
 #endif
 
  char *
-g_fmt(register char *b, double x)
+json_c_g_fmt(register char *b, double x)
 {
 	register int i, k;
 	register char *s;
@@ -48,18 +48,18 @@ g_fmt(register char *b, double x)
 		goto done;
 		}
 #endif
-	s = s0 = dtoa(x, 0, 0, &decpt, &sign, &se);
+	s = s0 = json_c_dtoa(x, 0, 0, &decpt, &sign, &se);
 	if (sign)
 		*b++ = '-';
 	if (decpt == 9999) /* Infinity or Nan */ {
-		while(*b++ = *s++);
+		while((*b++ = *s++));
 		goto done0;
 		}
 	if (decpt <= -4 || decpt > se - s + 5) {
 		*b++ = *s++;
 		if (*s) {
 			*b++ = '.';
-			while(*b = *s++)
+			while((*b = *s++))
 				b++;
 			}
 		*b++ = 'e';
@@ -85,10 +85,10 @@ g_fmt(register char *b, double x)
 		*b++ = '.';
 		for(; decpt < 0; decpt++)
 			*b++ = '0';
-		while(*b++ = *s++);
+		while((*b++ = *s++));
 		}
 	else {
-		while(*b = *s++) {
+		while((*b = *s++)) {
 			b++;
 			if (--decpt == 0 && *s)
 				*b++ = '.';
@@ -98,7 +98,9 @@ g_fmt(register char *b, double x)
 		*b = 0;
 		}
  done0:
-	freedtoa(s0);
+	json_c_freedtoa(s0);
+#ifdef IGNORE_ZERO_SIGN
  done:
+#endif
 	return b0;
 	}
