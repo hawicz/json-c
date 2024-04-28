@@ -82,19 +82,27 @@ json_c_g_fmt(register char *b, double x)
 		*b = 0;
 		}
 	else if (decpt <= 0) {
+		*b++ = '0'; // json-c customization: ensure leading zero
 		*b++ = '.';
 		for(; decpt < 0; decpt++)
 			*b++ = '0';
 		while((*b++ = *s++));
 		}
 	else {
+		int did_decpt = 0;
 		while((*b = *s++)) {
 			b++;
-			if (--decpt == 0 && *s)
+			if (--decpt == 0 && *s) {
+				did_decpt = 1;
 				*b++ = '.';
+				}
 			}
 		for(; decpt > 0; decpt--)
 			*b++ = '0';
+		if (!did_decpt) { // json-c customization: always look like a decimal
+			*b++ = '.';
+			*b++ = '0';
+			}
 		*b = 0;
 		}
  done0:

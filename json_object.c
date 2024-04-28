@@ -33,6 +33,7 @@
 #include "printbuf.h"
 #include "snprintf_compat.h"
 #include "strdup_compat.h"
+#include "netlib_fp/g_fmt.h"
 
 /* Avoid ctype.h and locale overhead */
 #define is_plain_digit(c) ((c) >= '0' && (c) <= '9')
@@ -1037,62 +1038,84 @@ static int json_object_double_to_json_string_format(struct json_object *jso, str
 	}
 	else
 	{
-		const char *std_format = "%.17g";
-		int format_drops_decimals = 0;
-		int looks_numeric = 0;
 
-		if (!format)
-		{
+		if (format || 
 #if defined(HAVE___THREAD)
-			if (tls_serialization_float_format)
-				format = tls_serialization_float_format;
-			else
+		    tls_serialization_float_format || 
 #endif
-			    if (global_serialization_float_format)
-				format = global_serialization_float_format;
-			else
-				format = std_format;
-		}
-		size = snprintf(buf, sizeof(buf), format, jsodbl->c_double);
-
-		if (size < 0)
-			return -1;
-
-		p = strchr(buf, ',');
-		if (p)
-			*p = '.';
-		else
-			p = strchr(buf, '.');
-
-		if (format == std_format || strstr(format, ".0f") == NULL)
-			format_drops_decimals = 1;
-
-		looks_numeric = /* Looks like *some* kind of number */
-		    is_plain_digit(buf[0]) || (size > 1 && buf[0] == '-' && is_plain_digit(buf[1]));
-
-		if (size < (int)sizeof(buf) - 2 && looks_numeric && !p && /* Has no decimal point */
-		    strchr(buf, 'e') == NULL && /* Not scientific notation */
-		    format_drops_decimals)
+		    global_serialization_float_format)
 		{
-			// Ensure it looks like a float, even if snprintf didn't,
-			//  unless a custom format is set to omit the decimal.
-			strcat(buf, ".0");
-			size += 2;
-		}
-		if (p && (flags & JSON_C_TO_STRING_NOZERO))
-		{
-			/* last useful digit, always keep 1 zero */
-			p++;
-			for (q = p; *q; q++)
+			// If a custom format has been set then we _need_ to use printf
+			const char *std_format = "%.17g";
+			int format_drops_decimals = 0;
+			int looks_numeric = 0;
+
+			if (!format)
 			{
-				if (*q != '0')
-					p = q;
+	#if defined(HAVE___THREAD)
+				if (tls_serialization_float_format)
+					format = tls_serialization_float_format;
+				else
+	#endif
+					if (global_serialization_float_format)
+					format = global_serialization_float_format;
+				else
+					format = std_format;
 			}
-			/* drop trailing zeroes */
-			if (*p != 0)
-				*(++p) = 0;
-			size = p - buf;
+			size = snprintf(buf, sizeof(buf), format, jsodbl->c_double);
+
+			if (size < 0)
+				return -1;
+
+			p = strchr(buf, ',');
+			if (p)
+				*p = '.';
+			else
+				p = strchr(buf, '.');
+
+			if (format == std_format || strstr(format, ".0f") == NULL)
+				format_drops_decimals = 1;
+
+			looks_numeric = /* Looks like *some* kind of number */
+				is_plain_digit(buf[0]) || (size > 1 && buf[0] == '-' && is_plain_digit(buf[1]));
+
+			if (format_drops_decimals &&
+				size < (int)sizeof(buf) - 2 &&
+				looks_numeric && !p && /* Has no decimal point */
+				strchr(buf, 'e') == NULL) /* Not scientific notation */
+			{
+				// Ensure it looks like a float, even if snprintf didn't,
+				//  unless a custom format is set to omit the decimal.
+				strcat(buf, ".0");
+				size += 2;
+			}
+			if (p && (flags & JSON_C_TO_STRING_NOZERO))
+			{
+				/* last useful digit, always keep 1 zero */
+				p++;
+				for (q = p; *q; q++)
+				{
+					if (*q != '0')
+						p = q;
+				}
+				/* drop trailing zeroes */
+				if (*p != 0)
+					*(++p) = 0;
+				size = p - buf;
+			}
 		}
+		else
+		{
+			// Use netlib's g_fmt to serialize to the shortest float representation
+			buf[0] = '\0';
+			char *result = json_c_g_fmt(buf, jsodbl->c_double);
+			if (!result)
+				size = -1;
+			else
+				size = strlen(buf);
+			// no need for fixups here, g_fmt() emits the desired format
+		}
+
 	}
 	// although unlikely, snprintf can fail
 	if (size < 0)

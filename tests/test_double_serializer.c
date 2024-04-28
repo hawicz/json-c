@@ -30,21 +30,55 @@ int main(int argc, char **argv)
 	json_object_set_serializer(obj, json_object_double_to_json_string, udata, NULL);
 	printf("obj.to_string(custom)=%s\n", json_object_to_json_string(obj));
 
-	printf("Test reset serializer:\n");
+	printf("Test reset serializer to default:\n");
 	json_object_set_serializer(obj, NULL, NULL, NULL);
 	printf("obj.to_string(reset)=%s\n", json_object_to_json_string(obj));
+	json_object_put(obj);
+
+	printf("Test JSON_C_TO_STRING_NOZERO:\n");
+	obj = json_object_new_double(1.5);
+	// Set an explicit serializer, to ensure printf is used
+	char custom_format[] = "%.17f"; // Use %f b/c it pads on the right with zeros
+	json_object_set_serializer(obj, json_object_double_to_json_string, custom_format, NULL);
+
+	printf("obj.to_string(%s, 0 flags)=%s\n", custom_format, json_object_to_json_string_ext(obj, 0));
+	printf("obj.to_string(%s, nozero)=%s\n", custom_format, json_object_to_json_string_ext(obj, JSON_C_TO_STRING_NOZERO));
+
+	json_object_set_serializer(obj, NULL, NULL, NULL);
+	printf("obj.to_string(default serializer, 0 flags)=%s\n", json_object_to_json_string_ext(obj, 0));
+	printf("obj.to_string(default serializer, nozero)=%s\n", json_object_to_json_string_ext(obj, JSON_C_TO_STRING_NOZERO));
 
 	json_object_put(obj);
-	printf("Test no zero reset serializer:\n");
-	obj = json_object_new_double(3.1415000);
-	char data[] = "%.17g";
-	json_object_set_serializer(obj, json_object_double_to_json_string, data, NULL);
-	printf("obj.to_string(reset)=%s\n", json_object_to_json_string_ext(obj, 4));
+
+	obj = json_object_new_double(1.1);
+	json_object_set_serializer(obj, NULL, NULL, NULL);
+	// Check that 1.1 serializes to "1.1" instead of "1.1000000000000001"
+	printf("obj.to_string(1.1)=%s\n", json_object_to_json_string_ext(obj, 0));
+
+	json_object_set_double(obj, 0);
+	printf("obj.to_string(0.0)=%s\n", json_object_to_json_string_ext(obj, 0));
+
+	json_object_set_double(obj, 100);
+	printf("obj.to_string(100.0)=%s\n", json_object_to_json_string_ext(obj, 0));
+
+	json_object_set_double(obj, 0.5123);
+	printf("obj.to_string(0.5123)=%s\n", json_object_to_json_string_ext(obj, 0));
+
+	json_object_set_double(obj, 1000000);
+	printf("obj.to_string(1000000)=%s\n", json_object_to_json_string_ext(obj, 0));
+
+	json_object_set_double(obj, -1);
+	printf("obj.to_string(-1)=%s\n", json_object_to_json_string_ext(obj, 0));
+
+	json_object_set_double(obj, -1000);
+	printf("obj.to_string(-1000)=%s\n", json_object_to_json_string_ext(obj, 0));
+
+	json_object_set_double(obj, -1000.1);
+	printf("obj.to_string(-1000.1)=%s\n", json_object_to_json_string_ext(obj, 0));
 
 	json_object_put(obj);
-	obj = json_object_new_double(0.52381);
 
-	printf("obj.to_string(default format)=%s\n", json_object_to_json_string(obj));
+	obj = json_object_new_double(1.1);
 	if (json_c_set_serialization_double_format("x%0.3fy", JSON_C_OPTION_GLOBAL) < 0)
 		printf("ERROR: json_c_set_serialization_double_format() failed");
 	printf("obj.to_string(with global format)=%s\n", json_object_to_json_string(obj));
