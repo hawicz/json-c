@@ -413,6 +413,11 @@ set(JSON_C_HEADERS
     ${PROJECT_SOURCE_DIR}/strdup_compat.h
     ${PROJECT_SOURCE_DIR}/vasprintf_compat.h
     ${PROJECT_SOURCE_DIR}/netlib_fp/g_fmt.h
+    ${PROJECT_SOURCE_DIR}/errol/errol.h
+    ${PROJECT_SOURCE_DIR}/errol/enum3.h
+    ${PROJECT_SOURCE_DIR}/errol/enum4.h
+    ${PROJECT_SOURCE_DIR}/errol/itoa_c.h
+    ${PROJECT_SOURCE_DIR}/errol/lookup.h
 )
 
 set(JSON_C_SOURCES
@@ -430,6 +435,7 @@ set(JSON_C_SOURCES
     ${PROJECT_SOURCE_DIR}/strerror_override.c
     ${PROJECT_SOURCE_DIR}/netlib_fp/dtoa.c
     ${PROJECT_SOURCE_DIR}/netlib_fp/g_fmt.c
+    ${PROJECT_SOURCE_DIR}/errol/errol.c
 )
 
 set_source_files_properties(${PROJECT_SOURCE_DIR}/netlib_fp/dtoa.c PROPERTIES COMPILE_FLAGS -DIEEE_8087=1)

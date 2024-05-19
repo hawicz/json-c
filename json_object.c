@@ -34,6 +34,8 @@
 #include "snprintf_compat.h"
 #include "strdup_compat.h"
 #include "netlib_fp/g_fmt.h"
+#include <stdbool.h>
+#include "errol/errol.h"
 
 /* Avoid ctype.h and locale overhead */
 #define is_plain_digit(c) ((c) >= '0' && (c) <= '9')
@@ -1020,6 +1022,7 @@ static int json_object_double_to_json_string_format(struct json_object *jso, str
 	struct json_object_double *jsodbl = JC_DOUBLE(jso);
 	char buf[128], *p, *q;
 	int size;
+	int errol_exponent = 1;
 	/* Although JSON RFC does not support
 	 * NaN or Infinity as numeric values
 	 * ECMA 262 section 9.8.1 defines
@@ -1108,12 +1111,35 @@ static int json_object_double_to_json_string_format(struct json_object *jso, str
 		{
 			// Use netlib's g_fmt to serialize to the shortest float representation
 			buf[0] = '\0';
+// XXX use "Errol4" instead?
+#if 0
 			char *result = json_c_g_fmt(buf, jsodbl->c_double);
 			if (!result)
 				size = -1;
 			else
 				size = strlen(buf);
 			// no need for fixups here, g_fmt() emits the desired format
+#else
+			errol_exponent = 1;
+			if (jsodbl->c_double == 0.0)  // also other small values?
+				strcpy(buf, "0");
+			else if (jsodbl->c_double < 0)
+			{
+				buf[0] = '-';
+// XXX errol4 turns things like 0.1, 12.3 into non-optimal, long strings (0.10000000000000001, 12.300000000000001)
+				errol_exponent = json_c_errol3_dtoa(-jsodbl->c_double, buf+1);
+			}
+			else
+				errol_exponent = json_c_errol3_dtoa(jsodbl->c_double, buf);
+			size = strlen(buf);
+// XXX need to do more than just tack on the exponent. :(
+// calculate decimal point location, if it wouldn't be inside buf
+// only then append e${errol_exponent}
+// 0.1 => "1", exponent 0
+// 1   => "1", exponent 1
+// 10  => "1", exponent 2
+ 			if (errol_exponent 
+#endif
 		}
 
 	}
@@ -1126,6 +1152,12 @@ static int json_object_double_to_json_string_format(struct json_object *jso, str
 		// but if a custom one happens to do so, just silently truncate.
 		size = sizeof(buf) - 1;
 	printbuf_memappend(pb, buf, size);
+	if (errol_exponent != 1)
+	{
+		char exp_buf[10];  // actually only need room for at most "e-308"
+		size = snprintf(exp_buf, sizeof(exp_buf), "e%d", errol_exponent);
+		printbuf_memappend(pb, exp_buf, size);
+	}
 	return size;
 }
 
