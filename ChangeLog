@@ -1,4 +1,19 @@
 
+0.20 (future release)
+========================================
+Deprecated and removed features:
+--------------------------------
+* none yet
+
+New features
+------------
+* none yet
+
+Significant changes and bug fixes
+---------------------------------
+* none yet
+
+
 0.19 (up to commit 3c1cf2b, 2026-06-27)
 ========================================
 
@@ -36,7 +51,7 @@ Significant changes and bug fixes
 * Issue #916: Fix OOM via large array index in json_pointer_set
 * Issue #923: Avoid stack recursion in json_object_put()
 * Issue #927: CVE-2026-9146 - update json_object_iterator documentation
-* Issue #929: CVE-2026-11322 - fix information disclosure bug in apps/json_parse (not installed by default)
+* Issue #929: CVE-2026-63726 (previous incorrect CVE was 11322) - fix information disclosure bug in apps/json_parse (not installed by default)
 * Issue #930: fix locale-dependent strtod in json_object_get_double
 * Issue #931: deep copy values in json_patch copy op to avoid aliasing and cycles
 
