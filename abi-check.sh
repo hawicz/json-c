@@ -1,28 +1,52 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
-# The 0.17 release is broken
-prev=0.18
-release=0.19
+RUNDIR=$(dirname "$0")
+RUNDIR=$(realpath "${RUNDIR}")
 
-# ... clone json-c, abi-compliance-checker, abi-dumper
+. "${RUNDIR}/reltools/reltools.subr"
+# The 0.17 release is broken
+#prev=0.18
+#release=0.19
+
+prev=$(get_most_recent_relver)
+release=$(get_ver_descr)
+
+ACCDIR=${RUNDIR}/../abi-compliance-checker
+INSTBASE=${HOME}/json-c-installs
+INSTREL=$(realpath --relative-to="${ACCDIR}" "${INSTBASE}")
+
+if [ ! -d "${ACCDIR}" ]; then
+	echo "Cloning abi-compliance-checker into ${ACCDIR}"
+	git clone https://github.com/lvc/abi-compliance-checker "${ACCDIR}"
+fi
+
+if ! which perl > /dev/null ; then
+	echo "perl install needed: apt-get install perl, yum install perl, etc..." 1>&2
+	exit 1
+fi
 
 if [ "$1" != "--skip-build" ] ; then
-	mkdir build
-	cd build
-	CFLAGS=-Og cmake -DCMAKE_INSTALL_PREFIX=~/json-c-installs/json-c-${release} ..
+	BUILD_DEST=${INSTBASE}/json-c-${release}
+	echo "Building $(pwd) into ${BUILD_DEST}"
+	mkdir -p build.abi-check
+	cd build.abi-check
+	CFLAGS=-Og cmake -DCMAKE_INSTALL_PREFIX="${BUILD_DEST}" ..
 	make && make test && make install
 fi
 
 # Assume the old version has already been built
+if [ ! -d "${INSTBASE}/json-c-${prev}" ] ; then
+	echo "ERROR: ${INSTBASE}/json-c-${prev} does not exist" 1>&2
+	exit 1
+fi
 
-cd ~/abi-compliance-checker
 mkxml()
 {
 	ver="$1"
-	if [ ! -e ../json-c-installs/json-c-${ver}/lib64 ] ; then
-		ln -s lib ../json-c-installs/json-c-${ver}/lib64
+	if [ ! -e "${INSTBASE}/json-c-${ver}/lib64" ] ; then
+		ln -s lib "${INSTBASE}/json-c-${ver}/lib64"
 	fi
 cat <<EOF > json-c-${ver}.xml
 <foo>
@@ -31,15 +55,17 @@ cat <<EOF > json-c-${ver}.xml
 </version>
 
 <headers>
-../json-c-installs/json-c-${ver}/include/json-c
+${INSTREL}/json-c-${ver}/include/json-c
 </headers>
 
 <libs>
-../json-c-installs/json-c-${ver}/lib64/libjson-c.so
+${INSTREL}/json-c-${ver}/lib64/libjson-c.so
 </libs>
 </foo>
 EOF
 }
+
+cd "${ACCDIR}"
 mkxml ${release}
 mkxml ${prev}
 
